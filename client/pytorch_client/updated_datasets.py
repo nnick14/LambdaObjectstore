@@ -172,9 +172,10 @@ class MiniObjDataset(Dataset):
         self.data_shape = (num_samples, *self.img_dims)
 
         try:
-            bytes = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key)
+            meta = self.metas[idx]
+            bytes = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, meta[0])
             # images = torch.tensor(np_arr).reshape(self.data_shape)
-            np_arr = self.unwrap(bytes, self.metas[idx])
+            np_arr = self.unwrap(bytes, meta)
             labels = torch.tensor(self.labels[idx])
         except KeyError:
             np_arr, labels = self.set_in_cache(idx)
@@ -220,9 +221,9 @@ class MiniObjDataset(Dataset):
         #     bytes_loaded += len(i)
         arr = np.array(img_bytes)
         self.labels[idx] = np.array(labels, dtype=self.data_type)
-        self.metas[idx] = arr.dtype
         # tbs = np.array(images).astype(self.data_type)
         tbs = self.wrap(arr)
+        self.metas[idx] = [len(tbs), arr.dtype]
         # LOGGER.debug("Setting in cache: {} images, read {} bytes, setting {} bytes: {}".format(len(images), bytes_loaded, len(tbs), list(map(lambda x: len(x), arr))))
         go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, tbs)
         return arr, labels
@@ -231,8 +232,8 @@ class MiniObjDataset(Dataset):
         return arr.tobytes()
 
     def unwrap(self, bytes_arr: bytes, meta: any) -> np.ndarray:
-        arr = np.frombuffer(bytes_arr, dtype=meta)
-        LOGGER.debug("Unwraped {} bytes: {}".format(len(bytes_arr), list(map(lambda x: len(x), arr))))
+        arr = np.frombuffer(bytes_arr, dtype=meta[1])
+        # LOGGER.debug("Unwraped {} bytes: {}".format(len(bytes_arr), list(map(lambda x: len(x), arr))))
         return arr
 
     def initial_set_all_data(self):
