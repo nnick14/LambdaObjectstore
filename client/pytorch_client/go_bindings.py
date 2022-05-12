@@ -22,7 +22,7 @@ def load_go_lib(library_path: str) -> CDLL:
 
 
 def get_array_from_cache(
-    go_library: CDLL, cache_key: str
+    go_library: CDLL, cache_key: str, length: int
 ) -> bytes:
     """
     Example:
@@ -36,7 +36,7 @@ def get_array_from_cache(
     go_library.getFromCache.restype = c_void_p
 
     clientResultPtr = go_library.getFromCache(cache_key.encode("utf-8"))
-    clientResultStr = string_at(clientResultPtr)
+    clientResultStr = string_at(clientResultPtr, length)
 
     go_library.free(clientResultPtr)
     if clientResultStr[0] == NEGATIVE_ASCII_VALUE:
