@@ -32,7 +32,7 @@ def set_std_handler() -> logging.StreamHandler:
 
 def get_logger(module_name: str, handler: Optional[logging.FileHandler] = None) -> logging.Logger:
     logger = logging.getLogger(module_name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     if handler is not None:
         logger.addHandler(handler)
     return logger

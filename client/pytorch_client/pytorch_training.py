@@ -16,7 +16,7 @@ import cnn_models
 import infinicache_dataloaders
 import logging_utils
 
-LOGGER = logging_utils.initialize_logger(True)
+LOGGER = logging_utils.initialize_logger()
 DATALOG = logging_utils.get_logger("datalog")
 
 SEED = 1234

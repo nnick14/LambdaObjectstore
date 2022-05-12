@@ -96,5 +96,8 @@ test-local-small: build-bench
 ml-cifar-disk:
 	python3 ../client/pytorch_client --dataset cifar --disk_source /data/local/cifar --model densenet --ready -o cifar_densenet_disk.csv 1>cifar_densenet_disk.log 2>&1 &
 
+ml-cifar-sion:
+	./playback.sh exec "python3 ../client/pytorch_client --dataset cifar --batch 64 --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
+
 ml-places-sion:
-	./playback.sh exec "python3 ../client/pytorch_client --dataset places --s3_source places-infinicache --batch 256 --s3_train None --s3_test None --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
+	./playback.sh exec "python3 ../client/pytorch_client --dataset places --batch 256 --s3_source places-infinicache --s3_train None --s3_test None --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
