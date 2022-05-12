@@ -177,11 +177,14 @@ class MiniObjDataset(Dataset):
             # images = torch.tensor(np_arr).reshape(self.data_shape)
             np_arr = self.unwrap(bytes, meta)
             labels = torch.tensor(self.labels[idx])
-        except KeyError:
+
+            # Keep load_images in try block, so we may reset it if necessary
+            images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
+        except Exception as e:
+            LOGGER.debug("{} Resetting image {} due to {}".format(idx, key, e))
             np_arr, labels = self.set_in_cache(idx)
-            # images = images.to(torch.float32).reshape(self.data_shape)
-        images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
-        
+            images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
+
         if self.img_transform:
             images = self.img_transform(images.to(torch.float32).div(255))
         data = (images, labels)
