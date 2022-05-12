@@ -113,7 +113,7 @@ def main():
           filepaths = [os.path.join(args.disk_source, "test")], s3_bucket = args.s3_test, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar
         )
 
-  elif args.loader == "ininficache":
+  elif args.loader == "infinicache":
     go_bindings.GO_LIB = go_bindings.load_go_lib(os.path.join(os.path.dirname(__file__), "ecClient.so"))
     go_bindings.GO_LIB.initializeVars()
 
