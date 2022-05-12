@@ -70,9 +70,12 @@ class DatasetDisk(Dataset):
     def __getitem__(self, idx: int):
         label = os.path.basename(self.filepaths[idx]).split(".")[0].split("_")[self.label_idx]
         pil_img = Image.open(self.filepaths[idx])
-        img_tensor = F.pil_to_tensor(pil_img)
         if self.img_transform:
-            img_tensor = self.img_transform(img_tensor.to(torch.float32).div(255))
+            img_tensor = self.img_transform(pil_img)
+        else:
+            img_tensor = F.pil_to_tensor(pil_img)
+            img_tensor = img_tensor.to(torch.float32).div(255)
+
         self.total_samples += 1
 
         return img_tensor, int(label)

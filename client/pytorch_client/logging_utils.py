@@ -19,7 +19,7 @@ def set_file_handler(filename: str) -> logging.FileHandler:
     return handler
 
 
-def get_logger(module_name: str, handler: Optional[logging.FileHandler]) -> logging.Logger:
+def get_logger(module_name: str, handler: Optional[logging.FileHandler] = None) -> logging.Logger:
     logger = logging.getLogger(module_name)
     logger.setLevel(logging.INFO)
     if handler:
