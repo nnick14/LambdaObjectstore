@@ -46,7 +46,8 @@ def main():
   parser.add_argument("--s3_test", action='store', type=str, help="Load test set from S3 and specifiy the bucket.", default="infinicache-cifar-test")
   parser.add_argument("--loader", action='store', type=str, help="Dataloader used, choosing from disk, s3, or infinicache.", default="disk")
   parser.add_argument("--model", action='store', type=str, help="Pretrained model, choosing from resnet, efficientnet or densenet.", default="")
-  parser.add_argument("--batch", action='store', type=int, help="The batch size.", default=64)
+  parser.add_argument("--batch", action='store', type=int, help="The size of batch.", default=64)
+  parser.add_argument("--minibatch", action='store', type=int, help="The size of minibatch.", default=16)
   parser.add_argument("--epochs", action='store', type=int, help="Max epochs.", default=100)
   parser.add_argument("--accuracy", action='store', type=float, help="Target accuracy.", default=1.0)
   parser.add_argument("--benchmark", action='store_true', help="Simply benchmark the pretrained model.")
@@ -126,7 +127,7 @@ def main():
         channels=True,
         dataset_name=args.dataset,
         img_dims=img_dims,
-        obj_size=16,
+        obj_size=args.minibatch,
         img_transform=normalize_cifar,
     )
 
@@ -141,7 +142,7 @@ def main():
           channels=True,
           dataset_name=args.dataset,
           img_dims=(3, 32, 32),
-          obj_size=16,
+          obj_size=args.minibatch,
           img_transform=normalize_cifar,
       )
       start_time = time.time()
@@ -174,11 +175,11 @@ def main():
     if args.loader == "infinicache":
       collate_fn = utils.infinicache_collate
     trainloader = DataLoader(
-        trainset, batch_size=args.batch, shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+        trainset, batch_size=args.batch/args.minibatch, shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
     )
     if loadtestset:
       testloader = DataLoader(
-          testset, batch_size=args.batch, shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+          testset, batch_size=args.batch/args.minibatch, shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
       )
 
   # Define the model
