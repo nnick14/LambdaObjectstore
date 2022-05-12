@@ -103,4 +103,4 @@ ml-cifar-sion:
 	./playback.sh exec "python3 ../client/pytorch_client --dataset cifar --batch 64 --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
 
 ml-places-sion:
-	./playback.sh exec "python3 ../client/pytorch_client --dataset places --batch 256 --s3_source places-infinicache --s3_train None --s3_test None --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
+	./playback.sh exec "python3 ../client/pytorch_client --dataset places --batch 256 --s3_source places-infinicache --s3_train None --s3_test None --loader infinicache --model basic --epochs 11 -o _places_basic_sion.csv" 1000 "" "" -enable-dashboard 1>./log 2>&1 &

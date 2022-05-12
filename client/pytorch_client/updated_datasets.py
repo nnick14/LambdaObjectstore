@@ -181,7 +181,7 @@ class MiniObjDataset(Dataset):
             # Keep load_images in try block, so we may reset it if necessary
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
         except Exception as e:
-            LOGGER.debug("{} Resetting image {} due to {}".format(idx, key, e))
+            LOGGER.warn("{} Resetting image {} due to {}".format(idx, key, e))
             np_arr, labels = self.set_in_cache(idx)
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
 
