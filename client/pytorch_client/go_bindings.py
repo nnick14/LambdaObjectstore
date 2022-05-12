@@ -4,7 +4,6 @@ the command: `go build -o ecClient.so -buildmode=c-shared go_client.go`
 """
 from __future__ import annotations
 
-from functools import reduce
 from ctypes import CDLL, c_char_p, c_void_p, cdll, string_at
 from typing import TypeVar
 
@@ -21,32 +20,27 @@ def load_go_lib(library_path: str) -> CDLL:
     return cdll.LoadLibrary(library_path)
 
 
-def get_array_from_cache(
-    go_library: CDLL, cache_key: str, arr_dtype: NumpyDtype, arr_shape: tuple[int]
-) -> np.ndarray:
+def get_array_from_cache(go_library: CDLL, cache_key: str, arr_len: int) -> np.ndarray:
     """
     Example:
         go_library = load_go_lib(args.go_lib_path)
         cache_key = "test_" + str(random.randint(0, 50000))
-        arr_dtype = input_arr.dtype
     """
     # Need to make sure to free any pointers
     go_library.free.argtypes = [c_void_p]
     go_library.getFromCache.argtypes = [c_char_p]
     go_library.getFromCache.restype = c_void_p
-    arr_length = reduce(lambda x, y: x * y, arr_shape)
 
     clientResultPtr = go_library.getFromCache(cache_key.encode("utf-8"))
-    clientResultStr = string_at(clientResultPtr, arr_length)
+    clientResultStr = string_at(clientResultPtr, int(arr_len))
 
     go_library.free(clientResultPtr)
     if clientResultStr[0] == NEGATIVE_ASCII_VALUE:
         raise KeyError("Key is not in cache")
-    result_arr = np.frombuffer(clientResultStr, dtype=arr_dtype).reshape(arr_shape)
-    return result_arr
+    return clientResultStr
 
 
-def set_array_in_cache(go_library: CDLL, cache_key: str, input_arr: np.ndarray):
+def set_array_in_cache(go_library: CDLL, cache_key: str, byte_arr: bytes):
     """
     Example:
         go_library = load_go_lib(args.go_lib_path)
@@ -57,5 +51,4 @@ def set_array_in_cache(go_library: CDLL, cache_key: str, input_arr: np.ndarray):
     go_library.free.argtypes = [c_void_p]
     go_library.setInCache.argtypes = [c_char_p, c_char_p]
 
-    np_bytes = input_arr.tobytes()
-    go_library.setInCache(cache_key.encode("utf-8"), np_bytes, len(np_bytes))
+    go_library.setInCache(cache_key.encode("utf-8"), byte_arr, len(byte_arr))

@@ -124,6 +124,7 @@ class MiniObjDataset(Dataset):
         self.img_dims = img_dims
         self.data_type = np.uint8
         self.labels = np.ones(self.chunked_labels.shape, dtype=self.data_type)
+        self.chunk_byte_lengths = np.ones(len(self.chunked_fpaths))
         self.total_samples = 0
         self.img_transform = img_transform
 
@@ -132,22 +133,23 @@ class MiniObjDataset(Dataset):
 
     def __getitem__(self, idx: int):
         num_samples = len(self.chunked_fpaths[idx])
-        key = f"{self.base_keyname}-{idx:05d}"
+        key = f"{self.base_keyname}-{idx:05d}1"
         self.data_shape = (num_samples, *self.img_dims)
 
         try:
-            np_arr = go_bindings.get_array_from_cache(GO_LIB, key, self.data_type, self.data_shape)
-            images = torch.tensor(np_arr).reshape(self.data_shape)
+            bytes_arr = go_bindings.get_array_from_cache(GO_LIB, key, self.chunk_byte_lengths[idx])
+            images = self.convert_bytes_to_images(bytes_arr)
             labels = torch.tensor(self.labels[idx])
 
         except KeyError:
             images, labels = self.get_s3_threaded(idx)
             self.labels[idx] = np.array(labels, dtype=self.data_type)
-            go_bindings.set_array_in_cache(GO_LIB, key, np.array(images).astype(self.data_type))
-            images = images.to(torch.float32).reshape(self.data_shape)
+            self.chunk_byte_lengths[idx] = len(images)
+            go_bindings.set_array_in_cache(GO_LIB, key, images)
+            images = self.convert_bytes_to_images(images)
 
         if self.img_transform:
-            images = self.img_transform(images.to(torch.float32).div(255))
+            images = self.img_transform(images.div(255))
         data = (images, labels)
         self.total_samples += num_samples
         return data
@@ -156,24 +158,62 @@ class MiniObjDataset(Dataset):
         fpaths = self.chunked_fpaths[idx]
         # Returns 1-D tensor with number of labels
         labels = torch.tensor(self.chunked_labels[idx])
+        byte_arr = b""
         with ThreadPoolExecutor(len(fpaths)) as executor:
             futures = [executor.submit(self.load_image, f) for f in fpaths]
             # Returns tensor of shape [object_size, num_channels, H, W]
-            results = torch.stack([future.result() for future in as_completed(futures)])
-        return results, labels
+            for future in as_completed(futures):
+                byte_arr = self.convert_to_bytes(future.result(), byte_arr)
+
+        return byte_arr, labels
 
     def load_image(self, s3_prefix: str) -> torch.Tensor:
         s3_png = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_prefix)
-        img_bytes = s3_png["Body"].read()
-        pil_img = Image.open(BytesIO(img_bytes))
-        img_tensor = F.pil_to_tensor(pil_img)
-        return img_tensor
+        return s3_png["Body"].read()
+
+    def convert_to_bytes(self, inp_bytes: bytes, prev_bytes: bytes = None):
+        """Combines inp_bytes into an existing byte array, if entered. Otherwise creates a new byte array.
+
+        The first character (bytes_len) is the length of the bytes representing the length of the size
+        of the bytes array. bytes_size is the size of the bytes array. This helps to break apart long
+        byte arrays.
+        """
+        bytes_len = str(len(inp_bytes)).encode()
+        bytes_size = str(len(bytes_len)).encode()
+
+        converted_bytes = bytes_size + bytes_len + inp_bytes
+
+        if prev_bytes:
+            return prev_bytes + converted_bytes
+        return converted_bytes
+
+    def convert_bytes_to_images(self, byte_arr: bytes):
+        tensor_images = torch.ones(self.data_shape)
+        for idx in range(self.data_shape[0]):
+            ex_bytes, byte_arr = self.extract_bytes(byte_arr)
+            pil_img = Image.open(BytesIO(ex_bytes))
+            tensor_images[idx] = F.pil_to_tensor(pil_img)
+
+        return tensor_images
+
+    def extract_bytes(self, inp_bytes: bytes) -> tuple[bytes, Optional[bytes]]:
+        """Uses the byte length information used in `convert_to_bytes` to split the single byte
+        array into the byte arrays for each image.
+        """
+        byte_len = int(inp_bytes[0:1])
+        size_bytes = int(inp_bytes[1:byte_len + 1])
+        sub_img = inp_bytes[1 + byte_len:size_bytes + 1 + byte_len]
+        removed_bytes = inp_bytes[size_bytes + 1 + byte_len:]
+        if removed_bytes:
+            return sub_img, inp_bytes[size_bytes + 1 + byte_len:]
+        return sub_img, None
 
     def set_in_cache(self, idx: int):
-        key = f"{self.base_keyname}-{idx:05d}"
+        key = f"{self.base_keyname}-{idx:05d}1"
         images, labels = self.get_s3_threaded(idx)
         self.labels[idx] = np.array(labels, dtype=self.data_type)
-        go_bindings.set_array_in_cache(GO_LIB, key, np.array(images).astype(self.data_type))
+        self.chunk_byte_lengths[idx] = len(images)
+        go_bindings.set_array_in_cache(GO_LIB, key, images)
 
     def initial_set_all_data(self):
         idxs = list(range(len(self.chunked_fpaths)))
