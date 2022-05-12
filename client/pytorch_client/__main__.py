@@ -82,7 +82,7 @@ def main():
     img_dims = (3, 256, 256)
 
   # Define the dataset
-  loadtestset = testset != ""
+  loadtestset = (args.s3_test != "")
   if args.disk_source != "":
     if args.s3_source != "":
       if args.ready:
