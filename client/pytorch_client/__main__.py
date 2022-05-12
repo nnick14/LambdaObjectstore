@@ -1,6 +1,8 @@
 import argparse
 import torch
 import os
+import time
+from client.pytorch_client.pytorch_training import DATALOG
 
 import pytorch_training
 from pytorch_training import initialize_model, run_training_get_results
@@ -117,7 +119,11 @@ def main():
         obj_size=16,
         img_transform=normalize_cifar,
     )
-    trainset.initial_set_all_data()
+
+    start_time = time.time()
+    loading_time, total_samples = trainset.initial_set_all_data()
+    DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, total_samples, total_samples)
+
     if loadtestset:
       testset = MiniObjDataset(
           args.s3_test,
@@ -128,7 +134,9 @@ def main():
           obj_size=16,
           img_transform=normalize_cifar,
       )
-      testset.initial_set_all_data()
+      start_time = time.time()
+      loading_time, total_samples = testset.initial_set_all_data()
+      DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, 0, start_time, loading_time, loading_time, total_samples, total_samples)
 
   else:
     if args.s3_train == "":

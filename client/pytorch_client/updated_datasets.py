@@ -22,6 +22,7 @@ from go_bindings import GO_LIB
 import logging_utils
 
 LOGGER = logging_utils.initialize_logger()
+DATALOG = logging_utils.get_logger("datalog")
 
 class LoadTimes:
     def __init__(self, name: str):
@@ -156,7 +157,6 @@ class MiniObjDataset(Dataset):
         self.labels = np.ones(self.chunked_labels.shape, dtype=self.data_type)
         self.total_samples = 0
         self.img_transform = img_transform
-        GO_LIB.initializeVars()
 
     def __len__(self):
         return len(self.chunked_fpaths)
@@ -223,6 +223,7 @@ class MiniObjDataset(Dataset):
             self.total_samples,
             time_taken,
         )
+        return time_taken, self.total_samples
 
     def __str__(self):
         return f"{self.dataset_name}_MiniObjDataset"

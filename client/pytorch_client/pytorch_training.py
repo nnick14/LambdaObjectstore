@@ -19,11 +19,6 @@ import logging_utils
 LOGGER = logging_utils.initialize_logger(True)
 DATALOG = logging_utils.get_logger("datalog")
 
-DATALOG_TRAINING = 0
-DATALOG_VALIDATION = 1
-DATALOG_BATCH = 2
-
-
 SEED = 1234
 NUM_EPOCHS = 10
 DEVICE = "cuda:0"
@@ -90,7 +85,7 @@ def training_cycle(
 
             if idx % 100 == 99:
                 if not validation:
-                    DATALOG.info("%d,%d,%f,%f,%f,%f,%f", DATALOG_BATCH, epoch + start_epoch, batch_log_start, batch_log_loading, time.time() - batch_log_start, idx + 1, num_batches)
+                    DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_BATCH, epoch + start_epoch, batch_log_start, batch_log_loading, time.time() - batch_log_start, idx + 1, num_batches)
                 print(
                     (
                         f"Epoch: {epoch+1:03d}/{num_epochs:03d} |"
@@ -163,7 +158,7 @@ def run_training_get_results(
         validation_loading_time, accuracy, top5 = training_cycle(model, validation_loader, num_epochs=0, start_epoch=0, device=device)
         validation_time = time.time() - validation_start
         LOGGER.info("Pretrained top-1 accuracy: %.3f, top-5 accuracy %.3f", accuracy * 100, top5 * 100)
-        DATALOG.info("%d,%d,%f,%f,%f,%f,%f", DATALOG_VALIDATION, 0, validation_start, validation_loading_time, validation_time, accuracy, top5)
+        DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, 0, validation_start, validation_loading_time, validation_time, accuracy, top5)
 
     for epoch in range(num_epochs):
         epoch_start = time.time()
@@ -180,7 +175,7 @@ def run_training_get_results(
             accuracy * 100,
             top5 * 100,
         )
-        DATALOG.info("%d,%d,%f,%f,%f,%f,%f", DATALOG_TRAINING, epoch + 1, epoch_start, training_loading_time, training_time, accuracy, top5)
+        DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, epoch + 1, epoch_start, training_loading_time, training_time, accuracy, top5)
 
         if validation_loader is not None:
             validation_start = time.time()
@@ -188,7 +183,7 @@ def run_training_get_results(
             validation_time += time.time() - validation_start
             validation_loading_time += loading_time
             LOGGER.info("[Epoch %3d] Validation top-1 accuracy: %.3f, top-5 accuracy %.3f", epoch + 1, accuracy * 100, top5 * 100)
-            DATALOG.info("%d,%d,%f,%f,%f,%f,%f", DATALOG_VALIDATION, epoch + 1, validation_start, validation_loading_time, validation_time, accuracy, top5)
+            DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, epoch + 1, validation_start, validation_loading_time, validation_time, accuracy, top5)
 
             if accuracy >= target_accuracy:
                 LOGGER.info("Accuracy reached.")

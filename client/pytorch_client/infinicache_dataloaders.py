@@ -286,7 +286,6 @@ class InfiniCacheLoader(BaseDataLoader):
     ):
         super().__init__(dataset, dataset_name, img_dims, image_dtype, batch_size, collate_fn)
         self.base_keyname = f"{self.dataset_name}_{self.batch_size}_"
-        GO_LIB.initializeVars()
         self.initial_set_all_data()
 
     def __next__(self):

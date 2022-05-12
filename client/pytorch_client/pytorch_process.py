@@ -13,10 +13,8 @@ from PIL import Image
 from torch.utils.data import DataLoader
 
 import go_bindings
+from go_bindings import GO_LIB
 from infinicache_dataloaders import MnistDatasetCache
-
-GO_LIB = go_bindings.load_go_lib("./ecClient.so")
-GO_LIB.initializeVars()
 
 
 def save_imagenet(imagenet_base: Path, out_dir: Path):
