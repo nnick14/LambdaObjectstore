@@ -33,8 +33,7 @@ from torch.utils.data import Dataset
 from torch.utils.data._utils import collate
 from torchvision.transforms import functional as F
 
-import go_bindings 
-from go_bindings import GO_LIB
+import go_bindings
 import logging_utils
 
 LOGGER = logging_utils.get_logger(__name__, logging_utils.set_std_handler())
@@ -297,7 +296,7 @@ class InfiniCacheLoader(BaseDataLoader):
         self.data_shape = (batch_size, *self.img_dims)
 
         try:
-            np_arr = go_bindings.get_array_from_cache(GO_LIB, key, self.data_type, self.data_shape)
+            np_arr = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, self.data_type, self.data_shape)
             images = np_arr.reshape(self.data_shape)
             images = torch.tensor(np_arr).reshape(self.data_shape)
             labels = self.labels_cache[key]
@@ -308,7 +307,7 @@ class InfiniCacheLoader(BaseDataLoader):
             results = self.get_batch_threaded(batch_size)
             images, labels = self.collate_fn(results)
             self.labels_cache[key] = labels
-            go_bindings.set_array_in_cache(GO_LIB, key, np.array(images).astype(self.data_type))
+            go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, np.array(images).astype(self.data_type))
             images = images.to(torch.float32).reshape(self.data_shape)
             data = (images, labels)
         end_time = time.time()
@@ -334,7 +333,7 @@ class InfiniCacheLoader(BaseDataLoader):
         results = self.get_batch_threaded(batch_size)
         images, labels = self.collate_fn(results)
         self.labels_cache[key] = labels
-        go_bindings.set_array_in_cache(GO_LIB, key, np.array(images).astype(self.data_type))
+        go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, np.array(images).astype(self.data_type))
 
     def initial_set_all_data(self):
         LOGGER.info("Loading data into InfiniCache in parallel")

@@ -60,5 +60,4 @@ def set_array_in_cache(go_library: CDLL, cache_key: str, input_arr: np.ndarray):
     np_bytes = input_arr.tobytes()
     go_library.setInCache(cache_key.encode("utf-8"), np_bytes, len(np_bytes))
 
-GO_LIB = load_go_lib(os.path.join(os.path.dirname(__file__), "ecClient.so"))
-GO_LIB.initializeVars()
+GO_LIB = None
