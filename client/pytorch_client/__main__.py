@@ -11,6 +11,7 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 import utils
 import logging_utils
+import go_bindings
 
 class SmartFormatter(argparse.HelpFormatter):
   """Add option to split lines in help messages"""
@@ -31,7 +32,7 @@ class SmartFormatter(argparse.HelpFormatter):
 #         setattr(namespace, self.dest, values[0])
 #         setattr(namespace, "argv", values) 
 
-  
+
 def main():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=SmartFormatter)
   parser.add_argument("-v", "--version", action="version",
@@ -54,6 +55,13 @@ def main():
   parser.add_argument("--prefix", action='store', type=str, help="Output prefix", default="")
 
   args, _ = parser.parse_known_args()
+
+  if args.s3_source == "None":
+    args.s3_source = ""
+  if args.s3_train == "None":
+    args.s3_train = ""
+  if args.s3_test == "None":
+    args.s3_test = ""
 
   if args.output != "":
     output = args.prefix + args.output
@@ -106,6 +114,9 @@ def main():
         )
 
   elif args.loader == "ininficache":
+    go_bindings.GO_LIB = go_bindings.load_go_lib(os.path.join(os.path.dirname(__file__), "ecClient.so"))
+    go_bindings.GO_LIB.initializeVars()
+
     if args.s3_train == "":
       args.s3_train = args.s3_source
 

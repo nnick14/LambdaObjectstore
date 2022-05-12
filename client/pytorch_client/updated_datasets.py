@@ -18,7 +18,6 @@ from torch.utils.data import Dataset
 from torchvision.transforms import functional as F
 
 import go_bindings 
-from go_bindings import GO_LIB
 import logging_utils
 
 LOGGER = logging_utils.initialize_logger()
@@ -167,14 +166,14 @@ class MiniObjDataset(Dataset):
         self.data_shape = (num_samples, *self.img_dims)
 
         try:
-            np_arr = go_bindings.get_array_from_cache(GO_LIB, key, self.data_type, self.data_shape)
+            np_arr = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, self.data_type, self.data_shape)
             images = torch.tensor(np_arr).reshape(self.data_shape)
             labels = torch.tensor(self.labels[idx])
 
         except KeyError:
             images, labels = self.get_s3_threaded(idx)
             self.labels[idx] = np.array(labels, dtype=self.data_type)
-            go_bindings.set_array_in_cache(GO_LIB, key, np.array(images).astype(self.data_type))
+            go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, np.array(images).astype(self.data_type))
             images = images.to(torch.float32).reshape(self.data_shape)
 
         if self.img_transform:
@@ -204,7 +203,7 @@ class MiniObjDataset(Dataset):
         key = f"{self.base_keyname}-{idx:05d}"
         images, labels = self.get_s3_threaded(idx)
         self.labels[idx] = np.array(labels, dtype=self.data_type)
-        go_bindings.set_array_in_cache(GO_LIB, key, np.array(images).astype(self.data_type))
+        go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, np.array(images).astype(self.data_type))
 
     def initial_set_all_data(self):
         idxs = list(range(len(self.chunked_fpaths)))

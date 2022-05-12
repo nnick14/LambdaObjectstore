@@ -13,7 +13,6 @@ from PIL import Image
 from torch.utils.data import DataLoader
 
 import go_bindings
-from go_bindings import GO_LIB
 from infinicache_dataloaders import MnistDatasetCache
 
 
@@ -39,8 +38,8 @@ def test_mnist_data():
     key = "mnist_1"
     input_data = np.array(mnist_dataset.data[0])
 
-    go_bindings.set_array_in_cache(GO_LIB, key, input_data)
-    cache_arr = go_bindings.get_array_from_cache(GO_LIB, key, input_data.dtype, input_data.shape)
+    go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, input_data)
+    cache_arr = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, input_data.dtype, input_data.shape)
     print("Array from cache shape: ", cache_arr.shape)
     print("Array from cache: ", cache_arr)
     assert np.sum(cache_arr == input_data) == 784
@@ -103,8 +102,8 @@ if __name__ == "__main__":
     print("LIBRARY LOADED")
 
     print("READING FROM MNIST_DATASET")
-    go_bindings.set_array_in_cache(GO_LIB, key, input_data)
-    cache_arr = go_bindings.get_array_from_cache(GO_LIB, key, input_data.dtype, input_data.shape)
+    go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, input_data)
+    cache_arr = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, input_data.dtype, input_data.shape)
     print("Array from cache shape: ", cache_arr.shape)
     print("Array from cache: ", cache_arr)
     assert np.sum(cache_arr == input_data) == 784
@@ -116,8 +115,8 @@ if __name__ == "__main__":
     img_np = np.array(img.squeeze(0))
     print(img.squeeze(0).shape)
 
-    go_bindings.set_array_in_cache(GO_LIB, key, np.array(img))
-    cache_arr = go_bindings.get_array_from_cache(GO_LIB, key, input_data.dtype, input_data.shape)
+    go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, np.array(img))
+    cache_arr = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, input_data.dtype, input_data.shape)
     print("Array from cache shape: ", cache_arr.shape)
     print("Array from cache: ", cache_arr)
     assert np.sum(cache_arr == np.array(img)) == 784
