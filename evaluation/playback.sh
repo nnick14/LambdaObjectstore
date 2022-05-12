@@ -86,7 +86,7 @@ if [ "$1" == "dryrun" ]; then
 	dry_perform "$1" "$2" "$3" "$4" "$5" "$6" "$7"
 else
 	mkdir -p $PWD/$ENTRY
-	CLUSTER=$2
+	CLUSTER=$3
 	((MAXLAMBDAID=CLUSTER-1))
 
 	START=`date +"%Y-%m-%d %H:%M:%S"`
