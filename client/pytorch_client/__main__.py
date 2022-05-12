@@ -13,6 +13,8 @@ import utils
 import logging_utils
 import go_bindings
 
+LOGGER = logging_utils.initialize_logger(True)
+
 class SmartFormatter(argparse.HelpFormatter):
   """Add option to split lines in help messages"""
 
@@ -31,7 +33,6 @@ class SmartFormatter(argparse.HelpFormatter):
 
 #         setattr(namespace, self.dest, values[0])
 #         setattr(namespace, "argv", values) 
-
 
 def main():
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=SmartFormatter)
@@ -125,12 +126,11 @@ def main():
         args.s3_train,
         label_idx=0,
         channels=True,
-        dataset_name=args.dataset,
+        dataset_name=args.dataset + "_train",
         img_dims=img_dims,
         obj_size=args.minibatch,
         img_transform=normalize_cifar,
     )
-
     start_time = time.time()
     loading_time, total_samples = trainset.initial_set_all_data()
     pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, total_samples, total_samples)
@@ -140,7 +140,7 @@ def main():
           args.s3_test,
           label_idx=0,
           channels=True,
-          dataset_name=args.dataset,
+          dataset_name=args.dataset + "_test",
           img_dims=(3, 32, 32),
           obj_size=args.minibatch,
           img_transform=normalize_cifar,
@@ -175,11 +175,11 @@ def main():
     if args.loader == "infinicache":
       collate_fn = utils.infinicache_collate
     trainloader = DataLoader(
-        trainset, batch_size=args.batch/args.minibatch, shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+        trainset, batch_size=int(args.batch/args.minibatch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
     )
     if loadtestset:
       testloader = DataLoader(
-          testset, batch_size=args.batch/args.minibatch, shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+          testset, batch_size=int(args.batch/args.minibatch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
       )
 
   # Define the model
