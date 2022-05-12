@@ -129,7 +129,7 @@ class MiniObjDataset(Dataset):
         self.channels = channels
         self.s3_client = boto3.client("s3")
         self.bucket_name = bucket_name
-        self.name = dataset_name
+        self.dataset_name = dataset_name
 
         LOGGER.info("Initializing dataset {} from s3".format(dataset_name))
         paginator = self.s3_client.get_paginator("list_objects_v2")
@@ -238,7 +238,7 @@ class MiniObjDataset(Dataset):
 
     def initial_set_all_data(self):
         idxs = list(range(len(self.chunked_fpaths)))
-        LOGGER.info("Loading {} into InfiniCache in parallel".format(self.name))
+        LOGGER.info("Loading {} into InfiniCache in parallel".format(self.dataset_name))
 
         start_time = time.time()
         with ThreadPoolExecutor(max_workers=10) as executor:
