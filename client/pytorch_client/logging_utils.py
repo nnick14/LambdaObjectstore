@@ -2,6 +2,9 @@ import logging
 import sys
 from typing import Optional
 
+DATALOG_TRAINING = 0
+DATALOG_VALIDATION = 1
+DATALOG_BATCH = 2
 
 def initialize_logger(add_handler: bool = False) -> logging.Logger:
     if add_handler:

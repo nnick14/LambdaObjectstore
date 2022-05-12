@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	d        = flag.Int("d", 2, "data shard")
-	p        = flag.Int("p", 1, "parity shard")
+	d        = flag.Int("d", 10, "data shard")
+	p        = flag.Int("p", 2, "parity shard")
+	c        = flag.Int("c", 10, "max concurrency")
 	addrList = "127.0.0.1:6378"
-	cli      *client.Client
+	cli      *client.PooledClient
 )
 
 //export getFromCache
@@ -26,7 +27,7 @@ func getFromCache(cacheKeyC *C.char) *C.char {
 	cacheKeyGo := C.GoString(cacheKeyC)
 
 	reader, issue := cli.Get(cacheKeyGo)
-	if issue {
+	if issue != nil {
 		return C.CString("-1")
 	}
 
@@ -47,9 +48,19 @@ func setInCache(cacheKeyC *C.char, inputDataC *C.char, arrayLen C.int) {
 func initializeVars() {
 	flag.Parse()
 
-	cli = client.NewClient(*d, *p, 32)
-	addrArr := strings.Split(addrList, ",")
-	cli.Dial(addrArr)
+	cli = client.NewPooledClient(strings.Split(addrList, ","), func(pc *client.PooledClient) {
+		pc.NumDataShards = *d
+		pc.NumParityShards = *p
+		pc.Concurrency = *c
+	})
+}
+
+//export close
+func close() {
+	if cli != nil {
+		cli.Close()
+		cli = nil
+	}
 }
 
 func main() {}

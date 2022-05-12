@@ -15,7 +15,6 @@ NumpyDtype = TypeVar("NumpyDtype")
 
 NEGATIVE_ASCII_VALUE = 45
 
-
 # # Run: `go build -o ecClient.so -buildmode=c-shared go_client.go`
 def load_go_lib(library_path: str) -> CDLL:
     """Load the Go library that was exported to a .so file."""
@@ -62,3 +61,4 @@ def set_array_in_cache(go_library: CDLL, cache_key: str, input_arr: np.ndarray):
     go_library.setInCache(cache_key.encode("utf-8"), np_bytes, len(np_bytes))
 
 GO_LIB = load_go_lib(os.path.join(os.path.dirname(__file__), "ecClient.so"))
+GO_LIB.initializeVars()
