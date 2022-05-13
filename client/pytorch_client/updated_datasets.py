@@ -108,7 +108,7 @@ class DatasetDisk(Dataset):
             for content in page.get("Contents"):
                 filenames.append(content["Key"])
         partial_dl = partial(self.download_file, local_path, s3_path)
-        LOGGER.info("Downloading data from S3 to Disk")
+        LOGGER.info("Downloading %s from S3 to Disk", self.dataset_name)
         with ThreadPoolExecutor(max_workers=64) as executor:
             futures = [executor.submit(partial_dl, fname) for fname in filenames]
             _ = [future.result() for future in as_completed(futures)]

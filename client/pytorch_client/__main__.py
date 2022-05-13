@@ -92,28 +92,41 @@ def main():
         args.disk_source = os.path.join(args.disk_source, "full")
 
       # trigger download
+      start_time = time.time()
       trainset = DatasetDisk([args.disk_source], s3_bucket = args.s3_source, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar)
+      loading_time = time.time() - start_time
+      if not args.ready:
+        pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, len(trainset), len(trainset))
 
       if args.dataset == "cifar":
         train_source, test_source = utils.split_cifar_data(
           args.disk_source,
           os.path.join(os.path.dirname(__file__), "cifar_test_fnames.txt"),
         )
-        trainset = DatasetDisk(train_source, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar)
-        testset = DatasetDisk(test_source, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar)
+        trainset = DatasetDisk(train_source, label_idx=0, dataset_name=args.dataset + "_train", img_transform=normalize_cifar)
+        testset = DatasetDisk(test_source, label_idx=0, dataset_name=args.dataset + "_test", img_transform=normalize_cifar)
 
     else:
       if args.ready:
         args.s3_train = ""
         args.s3_test = ""
 
+      start_time = time.time()
       trainset = DatasetDisk(
-        filepaths = [os.path.join(args.disk_source, "training")], s3_bucket = args.s3_train, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar
+        filepaths = [os.path.join(args.disk_source, "training")], s3_bucket = args.s3_train, label_idx=0, dataset_name=args.dataset + "_train", img_transform=normalize_cifar
       )
+      loading_time = time.time() - start_time
+      if not args.ready:
+        pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, len(trainset), len(trainset))
+
       if loadtestset:
+        start_time = time.time()
         testset = DatasetDisk(
-          filepaths = [os.path.join(args.disk_source, "test")], s3_bucket = args.s3_test, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar
+          filepaths = [os.path.join(args.disk_source, "test")], s3_bucket = args.s3_test, label_idx=0, dataset_name=args.dataset + "_test", img_transform=normalize_cifar
         )
+        loading_time = time.time() - start_time
+        if not args.ready:
+          pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, 0, start_time, loading_time, loading_time, len(testset), len(testset))
 
   elif args.loader == "infinicache":
     go_bindings.GO_LIB = go_bindings.load_go_lib(os.path.join(os.path.dirname(__file__), "ecClient.so"))
