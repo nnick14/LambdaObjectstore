@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
-import random
 from pathlib import Path
 
 import torch
-import torchvision
+from torchvision import transforms
 import os
 
 
@@ -20,7 +18,7 @@ def split_cifar_data(cifar_data_dir: str, test_fnames_path: str) -> list[str]:
         test_fnames = set([fname.strip() for fname in f.readlines()])
     filestubs = set(map(lambda x: x.name, filenames))
     train_filenames = list(filestubs.difference(test_fnames))
-    random.shuffle(train_filenames)
+    train_filenames = sorted(train_filenames, key=lambda filename: filename)
     train_filenames = list(map(lambda x: os.path.join(cifar_data_dir, x), train_filenames))
     test_filenames = sorted(test_fnames, key=lambda filename: filename)
     test_filenames = list(map(lambda x: os.path.join(cifar_data_dir, x), test_filenames))
@@ -30,18 +28,29 @@ def split_cifar_data(cifar_data_dir: str, test_fnames_path: str) -> list[str]:
 
 def normalize_image(channels: bool):
     if not channels:
-        transform = torchvision.transforms.Compose(
+        transform = transforms.Compose(
             [
-                torchvision.transforms.Normalize((0.485), (0.229)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485), (0.229)),
             ]
         )
     else:
-        transform = torchvision.transforms.Compose(
+        transform = transforms.Compose(
             [
-                torchvision.transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
             ]
         )
     return transform
+
+
+def cifar_transforms_train():
+    return transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
 
 
 def infinicache_collate(batch):

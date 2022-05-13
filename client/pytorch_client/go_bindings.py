@@ -4,12 +4,8 @@ the command: `go build -o ecClient.so -buildmode=c-shared go_client.go`
 """
 from __future__ import annotations
 
-from functools import reduce
 from ctypes import CDLL, c_char_p, c_void_p, cdll, string_at
 from typing import TypeVar
-
-import numpy as np
-import os
 
 NumpyDtype = TypeVar("NumpyDtype")
 
@@ -28,7 +24,6 @@ def get_array_from_cache(
     Example:
         go_library = load_go_lib(args.go_lib_path)
         cache_key = "test_" + str(random.randint(0, 50000))
-        arr_dtype = input_arr.dtype
     """
     # Need to make sure to free any pointers
     go_library.free.argtypes = [c_void_p]

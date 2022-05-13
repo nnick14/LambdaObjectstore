@@ -3,6 +3,7 @@ Deep learning training cycle.
 """
 from __future__ import annotations
 import random
+import sys
 
 import time
 from typing import Union
@@ -22,7 +23,7 @@ DATALOG = logging_utils.get_logger("datalog")
 SEED = 1234
 NUM_EPOCHS = 10
 DEVICE = "cuda:0"
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 0.1
 
 random.seed(SEED)
 torch.manual_seed(SEED)
@@ -40,6 +41,7 @@ def training_cycle(
     ],
     optim_func: torch.optim.Adam = None,
     loss_fn: nn.CrossEntropyLoss = None,
+    scheduler=None,
     num_epochs: int = 1,
     start_epoch: int = 1,
     device: str = "cuda"
@@ -98,11 +100,14 @@ def training_cycle(
                 batch_log_loading = 0
                 iteration = 0
                 running_loss = 0.0
+                sys.stdout.flush()
             
             # reset batch start
             batch_start = time.time()
 
         top1, top5, total = history
+        if scheduler:
+            scheduler.step()
 
     return loading_time, top1 / total, top5 / total
 
@@ -155,14 +160,16 @@ def run_training_get_results(
 
     if validation_loader is not None:
         validation_start = time.time()
-        validation_loading_time, accuracy, top5 = training_cycle(model, validation_loader, num_epochs=0, start_epoch=0, device=device)
+        validation_loading_time, accuracy, top5 = training_cycle(model, train_dataloader=validation_loader, num_epochs=0, start_epoch=0, device=device)
         validation_time = time.time() - validation_start
         LOGGER.info("Pretrained top-1 accuracy: %.3f, top-5 accuracy %.3f", accuracy * 100, top5 * 100)
         DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, 0, validation_start, validation_loading_time, validation_time, accuracy, top5)
 
+    max_lr = 0.01
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optim_func, max_lr, epochs=8, steps_per_epoch=len(data_loader))
     for epoch in range(num_epochs):
         epoch_start = time.time()
-        loading_time, accuracy, top5 = training_cycle(model, data_loader, optim_func, loss_fn, 1, epoch+1, device=device)
+        loading_time, accuracy, top5 = training_cycle(model, data_loader, optim_func, loss_fn, scheduler, 1, epoch+1, device=device)
         training_time += time.time() - epoch_start
         training_loading_time += loading_time
         LOGGER.info(
@@ -208,7 +215,8 @@ def initialize_model(
     model = model.to(device)
     model.train()
     loss_fn = nn.CrossEntropyLoss()
-    optim_func = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optim_func = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-4)
+    # optim_func = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9, weight_decay=5e-4)
     return model, loss_fn, optim_func
 
 
