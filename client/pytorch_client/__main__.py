@@ -186,7 +186,10 @@ def main():
   device = "cuda" if torch.cuda.is_available() else "cpu"
   if args.cpu:
     device = "cpu"
-  model, loss_fn, optim_func = initialize_model(args.model, 3, device = device)
+  num_classes = 10
+  if args.dataset == "places":
+    num_classes = 365
+  model, loss_fn, optim_func = initialize_model(args.model, 3, num_classes=num_classes, device = device)
   print("Running training with the {}".format(args.loader))
   if args.benchmark:
     args.epochs = 0
