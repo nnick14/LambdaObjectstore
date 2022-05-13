@@ -231,6 +231,10 @@ class MiniObjDataset(Dataset):
         go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, tbs)
         return arr, labels
 
+    def set_in_cache_threaded(self, idx: int):
+        _ = self.set_in_cache(idx)
+        return
+
     def wrap(self, arr: np.ndarray) -> bytes:
         return arr.tobytes()
 
@@ -245,7 +249,7 @@ class MiniObjDataset(Dataset):
 
         start_time = time.time()
         with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(self.set_in_cache, idx) for idx in idxs]
+            futures = [executor.submit(self.set_in_cache_threaded, idx) for idx in idxs]
             _ = [future.result() for future in as_completed(futures)]
             LOGGER.info("DONE with initial SET into InfiniCache")
         end_time = time.time()
