@@ -22,6 +22,7 @@ import logging_utils
 
 LOGGER = logging_utils.initialize_logger()
 DATALOG = logging_utils.get_logger("datalog")
+INITIALIZE_WORKERS = 10
 
 class LoadTimes:
     def __init__(self, name: str):
@@ -239,8 +240,30 @@ class MiniObjDataset(Dataset):
         return arr, labels
 
     def set_in_cache_threaded(self, idx: int):
+        self.initial_progress[idx] = 2
         _ = self.set_in_cache(idx)
-        return
+        self.initial_progress[idx] = 1
+        return idx
+
+    def track_threads(self, future):
+        ret = future.result()
+        self.initial_finished += 1
+        start = ret - INITIALIZE_WORKERS
+        if start < 0:
+            start = 0
+        end = ret + INITIALIZE_WORKERS
+        if end > len(self.chunked_fpaths):
+            end = len(self.chunked_fpaths)
+        lookback = list(filter(lambda x: self.initial_progress[x] != 1, range(start, ret)))
+        lookahead = list(filter(lambda x: self.initial_progress[x] == 2, range(ret, end)))
+        LOGGER.debug("Initiated {}/{} objects, status {}:{}:{}".format(
+            self.initial_finished,
+            len(self.initial_progress),
+            list(map(lambda x: -x if self.initial_progress[x] == 0 else x, lookback)),
+            ret, 
+            lookahead
+        ))
+        return ret
 
     def wrap(self, arr: np.ndarray) -> bytes:
         return arr.tobytes()
@@ -255,9 +278,11 @@ class MiniObjDataset(Dataset):
         LOGGER.info("Loading {} into InfiniCache in parallel".format(self.dataset_name))
 
         start_time = time.time()
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        self.initial_progress = np.full(len(idxs), 0)
+        self.initial_finished = 0
+        with ThreadPoolExecutor(max_workers=INITIALIZE_WORKERS) as executor:
             futures = [executor.submit(self.set_in_cache_threaded, idx) for idx in idxs]
-            _ = [future.result() for future in as_completed(futures)]
+            _ = [self.track_threads(future) for future in as_completed(futures)]
             LOGGER.info("DONE with initial SET into InfiniCache")
         end_time = time.time()
         time_taken = end_time - start_time
