@@ -190,8 +190,6 @@ class MiniObjDataset(Dataset):
             np_arr, labels = self.set_in_cache(idx)
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
 
-        if self.img_transform:
-            images = self.img_transform(images.to(torch.float32).div(255))
         data = (images, labels)
         self.total_samples += num_samples
         return data
@@ -209,7 +207,11 @@ class MiniObjDataset(Dataset):
 
     def load_image(self, img_bytes: bytes) -> torch.Tensor:
         pil_img = Image.open(BytesIO(img_bytes))
-        img_tensor = F.pil_to_tensor(pil_img)
+        if self.img_transform:
+            img_tensor = self.img_transform(pil_img)
+        else:
+            img_tensor = F.pil_to_tensor(pil_img)
+            img_tensor = img_tensor.to(torch.float32).div(255)
         return img_tensor
 
     def load_s3(self, s3_prefix: str) -> any:
