@@ -176,6 +176,8 @@ class MiniObjDataset(Dataset):
 
         try:
             meta = self.metas[idx]
+            if meta is None:
+                raise KeyError("Key not set")
             bytes = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, meta[0])
             # images = torch.tensor(np_arr).reshape(self.data_shape)
             np_arr = self.unwrap(bytes, meta)
