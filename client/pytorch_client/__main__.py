@@ -185,14 +185,16 @@ def main():
       )
   else:
     collate_fn = None
+    batch = args.batch
     if args.loader == "infinicache":
       collate_fn = utils.infinicache_collate
+      batch = args.batch/args.minibatch
     trainloader = DataLoader(
-        trainset, batch_size=int(args.batch/args.minibatch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+        trainset, batch_size=int(batch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
     )
     if loadtestset:
       testloader = DataLoader(
-          testset, batch_size=int(args.batch/args.minibatch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+          testset, batch_size=int(batch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
       )
 
   # Define the model
