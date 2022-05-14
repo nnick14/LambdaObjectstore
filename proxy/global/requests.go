@@ -43,12 +43,12 @@ type RequestCoordinator struct {
 	registry hashmap.HashMap
 }
 
-func NewRequestCoordinator(size uintptr) *RequestCoordinator {
+func NewRequestCoordinator(size int) *RequestCoordinator {
 	return &RequestCoordinator{
 		pool: &sync.Pool{
 			New: newRequestCounter,
 		},
-		registry: hashmap.NewMapWithStringKey(int(size)),
+		registry: hashmap.NewMapWithStringKey(size),
 	}
 }
 
