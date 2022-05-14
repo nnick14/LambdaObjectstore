@@ -137,7 +137,7 @@ class MiniObjDataset(Dataset):
         self.bucket_name = bucket_name
         self.dataset_name = dataset_name
 
-        LOGGER.info("Initializing dataset {} from s3".format(dataset_name))
+        LOGGER.info("Initializing dataset %s from s3(%s)", dataset_name, bucket_name)
         paginator = self.s3_client.get_paginator("list_objects_v2")
         filenames = []
         labels = []
