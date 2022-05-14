@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, Union
 from threading import Lock
 from functools import partial
+from random import randint
 
 import boto3
 import numpy as np
@@ -184,28 +185,30 @@ class MiniObjDataset(Dataset):
             # images = torch.tensor(np_arr).reshape(self.data_shape)
             np_arr = self.unwrap(bytes, meta)
             labels = self.labels[idx]
-            np_arr, labels = self.perm(np_arr, labels)
+            np_arr, labels = self.shuffle(np_arr, np.copy(labels))
 
             # Keep load_images in try block, so we may reset it if necessary
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
         except Exception as e:
             LOGGER.warn("{} Resetting image {} due to {}".format(idx, key, e))
             np_arr, labels = self.set_in_cache(idx)
-            np_arr, labels = self.perm(np_arr, labels)
+            np_arr, labels = self.shuffle(np_arr, np.copy(labels))
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
 
         data = (images, torch.tensor(labels))
         self.total_samples += num_samples
         return data
 
-    def perm(self, arr1, arr2):
+    def shuffle(self, arr1, arr2):
         """
         Permute the arrays synchornizely.
         """
-        arr = np.array([arr1, arr2]).transpose()
-        np.random.shuffle(arr)
-        arr = arr.transpose()
-        return arr[0], arr[1]
+        for i in range(len(arr1)-1,0,-1):
+            j = randint(0,i+1)
+            arr1[i], arr1[j] = arr1[j], arr1[i]
+            arr2[i], arr2[j] = arr2[j], arr2[i]
+        
+        return arr1, arr2
 
     def get_s3_threaded(self, idx: int):
         fpaths = self.chunked_fpaths[idx]
