@@ -206,7 +206,7 @@ class MiniObjDataset(Dataset):
         if len(arr1) != len(arr2):
             raise ValueError("Arrays to be shuffled must be the same length")
         for i in range(len(arr1)-1,0,-1):
-            j = randint(0,i+1)
+            j = randint(0,i)
             arr1[i], arr1[j] = arr1[j], arr1[i]
             arr2[i], arr2[j] = arr2[j], arr2[i]
         
