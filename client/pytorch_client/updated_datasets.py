@@ -183,23 +183,34 @@ class MiniObjDataset(Dataset):
             bytes = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, meta[0])
             # images = torch.tensor(np_arr).reshape(self.data_shape)
             np_arr = self.unwrap(bytes, meta)
-            labels = torch.tensor(self.labels[idx])
+            labels = self.labels[idx]
+            np_arr, labels = self.perm(np_arr, labels)
 
             # Keep load_images in try block, so we may reset it if necessary
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
         except Exception as e:
             LOGGER.debug("{} Resetting image {} due to {}".format(idx, key, e))
             np_arr, labels = self.set_in_cache(idx)
+            np_arr, labels = self.perm(np_arr, labels)
             images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
 
-        data = (images, labels)
+        data = (images, torch.tensor(labels))
         self.total_samples += num_samples
         return data
+
+    def perm(self, arr1, arr2):
+        """
+        Permute the arrays synchornizely.
+        """
+        arr = np.array([arr1, arr2]).transpose()
+        np.random.shuffle(arr)
+        arr = arr.transpose()
+        return arr[0], arr[1]
 
     def get_s3_threaded(self, idx: int):
         fpaths = self.chunked_fpaths[idx]
         # Returns 1-D tensor with number of labels
-        labels = torch.tensor(self.chunked_labels[idx])
+        labels = self.chunked_labels[idx]
         with ThreadPoolExecutor(len(fpaths)) as executor:
             futures = [executor.submit(self.load_s3, f) for f in fpaths]
             # Returns tensor of shape [object_size, num_channels, H, W]
@@ -238,7 +249,7 @@ class MiniObjDataset(Dataset):
         self.metas[idx] = [len(tbs), arr.dtype]
         # LOGGER.debug("Setting in cache: {} images, read {} bytes, setting {} bytes: {}".format(len(images), bytes_loaded, len(tbs), list(map(lambda x: len(x), arr))))
         go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, tbs)
-        return arr, labels
+        return arr, self.labels[idx]
 
     def set_in_cache_threaded(self, idx: int):
         self.initial_progress[idx] = 2
