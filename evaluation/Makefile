@@ -80,7 +80,18 @@ test-local-small: build-bench
 	bin/redbench -n 100 -c 3 -keymin 2 -keymax 2 -d 1 -p 0 -op 1
 
 ml-cifar-disk:
-	python3 ../client/pytorch_client --dataset cifar --disk_source /data/local/cifar --model densenet --ready -o cifar_densenet_disk.csv 1>cifar_densenet_disk.log 2>&1 &
+	@mkdir -p data/$(DATE)
+	python3 ../client/pytorch_client --dataset cifar --disk_source /data/local/cifar --batch 256 --model resnet -o ./data/$(DATE)/cifar_resnet_disk.csv $(PARAMS) 1>./data/$(DATE).log 2>&1 &
+
+ml-cifar-efs:
+	@mkdir -p data/$(DATE)
+	python3 ../client/pytorch_client --dataset cifar --disk_source /data/efs/cifar --batch 256 --model resnet -o ./data/$(DATE)/cifar_resnet_efs.csv $(PARAMS) 1>./data/$(DATE).log 2>&1 &
+
+ml-test-sion: build
+	./playback.sh exec "python3 ../client/pytorch_client --dataset cifar --batch 64 --s3_source infinicache-cifar-test --s3_train None --s3_test None --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv $(PARAMS)" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
+
+ml-cifar-sion: build
+	./playback.sh exec "python3 ../client/pytorch_client --dataset cifar --batch 256 --loader infinicache --model resnet -o _cifar_resnet_sion.csv $(PARAMS)" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
 
 ml-places-sion:
-	./playback.sh dryrun "python3 ../client/pytorch_client --dataset places --s3_source places-infinicache --s3_train None --s3_test None --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv" 1000 "" ""
+	./playback.sh dryrun "python3 ../client/pytorch_client --dataset places --batch 256 --loader infinicache --model resnet --s3_source places-infinicache --s3_train None --s3_test None --epochs 10 -o _places_resnet_sion.csv $(PARAMS)" 1000 "" "" 1>./log 2>&1 &
