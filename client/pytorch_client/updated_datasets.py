@@ -59,6 +59,8 @@ class DatasetDisk(Dataset):
         img_transform: Optional[torchvision.transforms.Compose] = None,
         s3_bucket: str = "",
     ):
+        self.dataset_name = dataset_name
+        
         if len(filepaths) == 1:
             localpath = Path(filepaths[0])
 
@@ -76,7 +78,6 @@ class DatasetDisk(Dataset):
         self.label_idx = label_idx
         self.img_transform = img_transform
         self.total_samples = 0
-        self.dataset_name = dataset_name
 
     def __len__(self):
         return len(self.filepaths)
