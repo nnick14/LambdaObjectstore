@@ -210,7 +210,7 @@ class MiniObjDataset(Dataset):
     def get_s3_threaded(self, idx: int):
         fpaths = self.chunked_fpaths[idx]
         # Returns 1-D tensor with number of labels
-        labels = self.chunked_labels[idx]
+        labels = torch.tensor(self.chunked_labels[idx])
         with ThreadPoolExecutor(len(fpaths)) as executor:
             futures = [executor.submit(self.load_s3, f) for f in fpaths]
             # Returns tensor of shape [object_size, num_channels, H, W]
