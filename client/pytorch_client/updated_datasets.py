@@ -203,6 +203,8 @@ class MiniObjDataset(Dataset):
         """
         Permute the arrays synchornizely.
         """
+        if len(arr1) != len(arr2):
+            raise ValueError("Arrays to be shuffled must be the same length")
         for i in range(len(arr1)-1,0,-1):
             j = randint(0,i+1)
             arr1[i], arr1[j] = arr1[j], arr1[i]
@@ -286,7 +288,8 @@ class MiniObjDataset(Dataset):
     def unwrap(self, bytes_arr: bytes, meta: any) -> np.ndarray:
         arr = np.frombuffer(bytes_arr, dtype=meta[1])
         # LOGGER.debug("Unwraped {} bytes: {}".format(len(bytes_arr), list(map(lambda x: len(x), arr))))
-        return arr
+        # array from buffer is readonly. We will need to shuffle the array, so return a copy.
+        return np.copy(arr)
 
     def initial_set_all_data(self):
         idxs = list(range(len(self.chunked_fpaths)))
