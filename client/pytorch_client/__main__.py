@@ -96,7 +96,7 @@ def main():
       trainset = DatasetDisk([args.disk_source], s3_bucket = args.s3_source, label_idx=0, dataset_name=args.dataset, img_transform=normalize_cifar)
       loading_time = time.time() - start_time
       if not args.ready:
-        pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, len(trainset), len(trainset))
+        pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_LOAD_ALL, 0, start_time, loading_time, loading_time, len(trainset), len(trainset))
 
       if args.dataset == "cifar":
         train_source, test_source = utils.split_cifar_data(
@@ -117,7 +117,7 @@ def main():
       )
       loading_time = time.time() - start_time
       if not args.ready:
-        pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, len(trainset), len(trainset))
+        pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_LOAD_TRAINING, 0, start_time, loading_time, loading_time, len(trainset), len(trainset))
 
       if loadtestset:
         start_time = time.time()
@@ -126,7 +126,7 @@ def main():
         )
         loading_time = time.time() - start_time
         if not args.ready:
-          pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, 0, start_time, loading_time, loading_time, len(testset), len(testset))
+          pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_LOAD_VALIDATION, 0, start_time, loading_time, loading_time, len(testset), len(testset))
 
   elif args.loader == "infinicache":
     go_bindings.GO_LIB = go_bindings.load_go_lib(os.path.join(os.path.dirname(__file__), "ecClient.so"))
@@ -146,7 +146,7 @@ def main():
     )
     start_time = time.time()
     loading_time, total_samples = trainset.initial_set_all_data()
-    pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_TRAINING, 0, start_time, loading_time, loading_time, total_samples, total_samples)
+    pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_LOAD_TRAINING, 0, start_time, loading_time, loading_time, total_samples, total_samples)
 
     if loadtestset:
       testset = MiniObjDataset(
@@ -160,7 +160,7 @@ def main():
       )
       start_time = time.time()
       loading_time, total_samples = testset.initial_set_all_data()
-      pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_VALIDATION, 0, start_time, loading_time, loading_time, total_samples, total_samples)
+      pytorch_training.DATALOG.info("%d,%d,%f,%f,%f,%f,%f", logging_utils.DATALOG_LOAD_VALIDATION, 0, start_time, loading_time, loading_time, total_samples, total_samples)
 
   else:
     if args.s3_train == "":
