@@ -119,66 +119,33 @@ class DatasetDisk(Dataset):
     def download_file(self, output_dir: str, bucket_name: str, file_name: str):
         self.s3_client.download_file(bucket_name, file_name, f"{output_dir}/{file_name}")
 
-class DatasetS3(Dataset):
+class BatchS3Dataset(Dataset):
     """Simulates having to load each data point from S3 every call."""
 
     def __init__(
         self, 
-        bucket_name: str, 
-        label_idx: int,
-        img_transform: Optional[torchvision.transforms.Compose] = None,
-    ):
-        self.s3_client = boto3.client("s3")
-        self.bucket_name = bucket_name
-        paginator = self.s3_client.get_paginator("list_objects_v2")
-        filenames = []
-        for page in paginator.paginate(Bucket=bucket_name):
-            for content in page.get("Contents"):
-                filenames.append(Path(content["Key"]))
-        self.filepaths = sorted(filenames, key=lambda filename: filename.stem)
-        self.label_idx = label_idx
-        self.img_transform = img_transform
-        self.total_samples = 0
-
-    def __len__(self):
-        return len(self.filepaths)
-
-    def __getitem__(self, idx: int):
-        label = self.filepaths[idx].stem.split("_")[self.label_idx]
-        s3_png = self.s3_client.get_object(Bucket=self.bucket_name, Key=str(self.filepaths[idx]))
-        img_bytes = s3_png["Body"].read()
-        pil_img = Image.open(BytesIO(img_bytes))
-        if self.img_transform:
-            img_tensor = self.img_transform(pil_img)
-        else:
-            img_tensor = F.pil_to_tensor(pil_img)
-            img_tensor = img_tensor.to(torch.float32).div(255)
-
-        self.total_samples += 1
-
-        return img_tensor, int(label)
-
-    def __str__(self):
-        return f"{self.bucket_name}_DatasetS3"
-
-class MiniObjDataset(Dataset):
-    def __init__(
-        self,
         bucket_name: str,
-        label_idx: int,
-        channels: bool,
-        dataset_name: str,
-        img_dims: tuple[int, int, int],
-        obj_size: int = 8,
+        dataset_name: str = None,
+        obj_size: int = 16,
+        label_idx: int = 0,
         img_transform: Optional[torchvision.transforms.Compose] = None,
     ):
-        self.label_idx = label_idx
-        self.channels = channels
         self.s3_client = boto3.client("s3")
         self.bucket_name = bucket_name
         self.dataset_name = dataset_name
-
-        LOGGER.info("Initializing dataset {} from s3".format(dataset_name))
+        if self.dataset_name is None:
+            self.dataset_name = bucket_name
+            LOGGER.info("Initializing dataset from s3(%s)", bucket_name)
+        else:
+            LOGGER.info("Initializing dataset %s from s3(%s)", dataset_name, bucket_name)
+        self.label_idx = label_idx
+        self.object_size = obj_size
+        self.img_transform = img_transform
+        
+        # Define some statistics
+        self.total_samples = 0
+        
+        # Load metadata from S3
         paginator = self.s3_client.get_paginator("list_objects_v2")
         filenames = []
         labels = []
@@ -187,7 +154,7 @@ class MiniObjDataset(Dataset):
                 filenames.append(content["Key"])
                 labels.append(int(content["Key"].split(".")[0].split("_")[self.label_idx]))
 
-        self.object_size = obj_size
+        
         # Chunk the filenames into objects of size self.object_size where self.object_size is the
         # number of images.
         multiple_len = len(filenames) - (len(filenames) % self.object_size)
@@ -197,44 +164,21 @@ class MiniObjDataset(Dataset):
 
         # Needs to be a numpy array to avoid memory leaks with multiprocessing:
         #       https://pytorch.org/docs/stable/data.html#multi-process-data-loading
+        # Keep original data
         self.chunked_fpaths = np.array(np.split(filenames_arr, (len(filenames_arr) // self.object_size)))
         self.chunked_labels = np.array(np.split(labels_arr, (len(labels_arr) // self.object_size)))
 
-        self.base_keyname = f"{dataset_name}-{self.object_size}-"
-        self.img_dims = img_dims
-        self.data_type = np.uint8
-        self.labels = np.ones(self.chunked_labels.shape, dtype=self.data_type)
-        self.metas = np.full(len(self.chunked_labels), None)
-        self.total_samples = 0
-        self.img_transform = img_transform
-
-        LOGGER.info("Dataset {} initialized".format(dataset_name))
+        LOGGER.info("Dataset {} initialized".format(self.dataset_name))
 
     def __len__(self):
         return len(self.chunked_fpaths)
 
     def __getitem__(self, idx: int):
         num_samples = len(self.chunked_fpaths[idx])
-        key = f"{self.base_keyname}-{idx:05d}"
-        self.data_shape = (num_samples, *self.img_dims)
 
-        try:
-            meta = self.metas[idx]
-            if meta is None:
-                raise KeyError("Key not set")
-            bytes = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, meta[0])
-            # images = torch.tensor(np_arr).reshape(self.data_shape)
-            np_arr = self.unwrap(bytes, meta)
-            labels = self.labels[idx]
-            np_arr, labels = self.shuffle(np_arr, np.copy(labels))
-
-            # Keep load_images in try block, so we may reset it if necessary
-            images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
-        except Exception as e:
-            LOGGER.debug("{} Resetting image {} due to {}".format(idx, key, e))
-            np_arr, labels = self.set_in_cache(idx)
-            np_arr, labels = self.shuffle(np_arr, np.copy(labels))
-            images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
+        np_arr, labels = self.get_s3_threaded(idx)
+        np_arr, labels = self.shuffle(np_arr, labels)
+        images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
 
         data = (images, torch.tensor(labels))
         self.total_samples += num_samples
@@ -255,13 +199,17 @@ class MiniObjDataset(Dataset):
 
     def get_s3_threaded(self, idx: int):
         fpaths = self.chunked_fpaths[idx]
-        # Returns 1-D tensor with number of labels
-        labels = torch.tensor(self.chunked_labels[idx])
         with ThreadPoolExecutor(len(fpaths)) as executor:
             futures = [executor.submit(self.load_s3, f) for f in fpaths]
             # Returns tensor of shape [object_size, num_channels, H, W]
             # results = torch.stack([future.result() for future in as_completed(futures)])
             results = [future.result() for future in as_completed(futures)]
+        
+        # Transform bytes to tensor-ready data
+        labels = torch.tensor(self.chunked_labels[idx])
+        # Transform to np.array for convience
+        labels = np.array(labels, dtype=np.uint8)
+
         return results, labels
 
     def load_image(self, img_bytes: bytes) -> torch.Tensor:
@@ -277,24 +225,68 @@ class MiniObjDataset(Dataset):
         s3_png = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_prefix)
         img_bytes = s3_png["Body"].read()
         return img_bytes
-        # pil_img = Image.open(BytesIO(img_bytes))
-        # img_tensor = F.pil_to_tensor(pil_img)
-        # return img_tensor
+
+    def __str__(self):
+        return f"{self.bucket_name}_DatasetS3"
+
+class MiniObjDataset(BatchS3Dataset):
+    def __init__(
+        self,
+        dataset_name: str,
+        s3_bucket: str,
+        obj_size: int = 16,
+        label_idx: int = 0,
+        img_transform: Optional[torchvision.transforms.Compose] = None,
+    ):
+        super().__init__(
+            bucket_name=s3_bucket,
+            dataset_name=dataset_name,
+            obj_size=obj_size,
+            label_idx=label_idx,
+            img_transform=img_transform,
+        )
+
+        # Defines object data
+        self.base_keyname = f"{dataset_name}-{self.object_size}-"
+        self.labels = np.ones(self.chunked_labels.shape, dtype=np.uint8)
+        self.metas = np.full(len(self.chunked_labels), None)
+
+    def __getitem__(self, idx: int):
+        num_samples = len(self.chunked_fpaths[idx])
+        key = f"{self.base_keyname}-{idx:05d}"
+       
+        try:
+            meta = self.metas[idx]
+            if meta is None:
+                raise KeyError("Key not set")
+            bytes = go_bindings.get_array_from_cache(go_bindings.GO_LIB, key, meta[0])
+            # images = torch.tensor(np_arr).reshape(self.data_shape)
+            np_arr = self.unwrap(bytes, meta)
+            labels = self.labels[idx]
+            np_arr, labels = self.shuffle(np_arr, np.copy(labels))
+
+            # Keep load_images in try block, so we may reset it if necessary
+            images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
+        except Exception as e:
+            LOGGER.warn("{} Resetting image {} due to {}".format(idx, key, e))
+            np_arr, labels = self.set_in_cache(idx)
+            np_arr, labels = self.shuffle(np_arr, np.copy(labels))
+            images = torch.stack(list(map(lambda x: self.load_image(x), np_arr)))
+
+        data = (images, torch.tensor(labels))
+        self.total_samples += num_samples
+        return data
 
     def set_in_cache(self, idx: int):
         key = f"{self.base_keyname}-{idx:05d}"
         # LOGGER.debug("{}. setting images {}".format(idx, key))
-        # bytes_loaded = 0
         img_bytes, labels = self.get_s3_threaded(idx)
-        # for i in images:
-        #     bytes_loaded += len(i)
         arr = np.array(img_bytes)
-        self.labels[idx] = np.array(labels, dtype=self.data_type)
-        # tbs = np.array(images).astype(self.data_type)
-        tbs = self.wrap(arr)
-        self.metas[idx] = [len(tbs), arr.dtype]
-        # LOGGER.debug("Setting in cache: {} images, read {} bytes, setting {} bytes: {}".format(len(images), bytes_loaded, len(tbs), list(map(lambda x: len(x), arr))))
-        go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, tbs)
+        self.labels[idx] = labels
+        obj_bytes = self.wrap(arr)
+        self.metas[idx] = [len(obj_bytes), arr.dtype]
+        # LOGGER.debug("Setting in cache: {} images, read {} bytes, setting {} bytes: {}".format(len(images), bytes_loaded, len(obj_bytes), list(map(lambda x: len(x), arr))))
+        go_bindings.set_array_in_cache(go_bindings.GO_LIB, key, obj_bytes)
         return arr, self.labels[idx]
 
     def set_in_cache_threaded(self, idx: int):

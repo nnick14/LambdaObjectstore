@@ -5,7 +5,7 @@ import time
 
 import pytorch_training
 from pytorch_training import initialize_model, run_training_get_results
-from updated_datasets import DatasetDisk, DatasetS3, MiniObjDataset
+from updated_datasets import DatasetDisk, BatchS3Dataset, MiniObjDataset
 from pathlib import Path
 from torch.utils.data import DataLoader
 import utils
@@ -135,11 +135,8 @@ def main():
       args.s3_train = args.s3_source
 
     trainset = MiniObjDataset(
+        args.dataset + "_train",
         args.s3_train,
-        label_idx=0,
-        channels=True,
-        dataset_name=args.dataset + "_train",
-        img_dims=img_dims,
         obj_size=args.minibatch,
         img_transform=normalize_cifar,
     )
@@ -149,11 +146,8 @@ def main():
 
     if loadtestset:
       testset = MiniObjDataset(
+          args.dataset + "_test",
           args.s3_test,
-          label_idx=0,
-          channels=True,
-          dataset_name=args.dataset + "_test",
-          img_dims=(3, 32, 32),
           obj_size=args.minibatch,
           img_transform=normalize_cifar,
       )
@@ -165,18 +159,18 @@ def main():
     if args.s3_train == "":
       args.s3_train = args.s3_source
 
-    trainset = DatasetS3(
-        args.s3_train, label_idx=0, img_transform=normalize_cifar
+    trainset = BatchS3Dataset(
+        args.s3_train, obj_size = args.minibatch, img_transform=normalize_cifar
     )
     if loadtestset:
-      testset = DatasetS3(
-          args.s3_test, label_idx=0, img_transform=normalize_cifar
+      testset = BatchS3Dataset(
+          args.s3_test, obj_size = args.minibatch, img_transform=normalize_cifar
       )
 
   # Define the dataloader
   collate_fn = None
   batch = args.batch
-  if args.loader == "infinicache":
+  if isinstance(trainset, BatchS3Dataset):
     collate_fn = utils.infinicache_collate
     batch = args.batch/args.minibatch
   trainloader = DataLoader(
