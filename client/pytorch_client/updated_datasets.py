@@ -119,6 +119,47 @@ class DatasetDisk(Dataset):
     def download_file(self, output_dir: str, bucket_name: str, file_name: str):
         self.s3_client.download_file(bucket_name, file_name, f"{output_dir}/{file_name}")
 
+class DatasetS3(Dataset):
+    """Simulates having to load each data point from S3 every call."""
+
+    def __init__(
+        self, 
+        bucket_name: str, 
+        label_idx: int,
+        img_transform: Optional[torchvision.transforms.Compose] = None,
+    ):
+        self.s3_client = boto3.client("s3")
+        self.bucket_name = bucket_name
+        paginator = self.s3_client.get_paginator("list_objects_v2")
+        filenames = []
+        for page in paginator.paginate(Bucket=bucket_name):
+            for content in page.get("Contents"):
+                filenames.append(Path(content["Key"]))
+        self.filepaths = sorted(filenames, key=lambda filename: filename.stem)
+        self.label_idx = label_idx
+        self.img_transform = img_transform
+        self.total_samples = 0
+
+    def __len__(self):
+        return len(self.filepaths)
+
+    def __getitem__(self, idx: int):
+        label = self.filepaths[idx].stem.split("_")[self.label_idx]
+        s3_png = self.s3_client.get_object(Bucket=self.bucket_name, Key=str(self.filepaths[idx]))
+        img_bytes = s3_png["Body"].read()
+        pil_img = Image.open(BytesIO(img_bytes))
+        if self.img_transform:
+            img_tensor = self.img_transform(pil_img)
+        else:
+            img_tensor = F.pil_to_tensor(pil_img)
+            img_tensor = img_tensor.to(torch.float32).div(255)
+
+        self.total_samples += 1
+
+        return img_tensor, int(label)
+
+    def __str__(self):
+        return f"{self.bucket_name}_DatasetS3"
 
 class MiniObjDataset(Dataset):
     def __init__(

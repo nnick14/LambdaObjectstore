@@ -87,6 +87,10 @@ ml-cifar-efs:
 	@mkdir -p data/$(DATE)
 	python3 ../client/pytorch_client --dataset cifar --disk_source /data/efs/cifar --batch 256 --model resnet -o ./data/$(DATE)/cifar_resnet_efs.csv $(PARAMS) 1>./data/$(DATE).log 2>&1 &
 
+ml-cifar-s3:
+	@mkdir -p data/$(DATE)
+	python3 ../client/pytorch_client --dataset cifar --batch 256 --loader s3 --model resnet -o ./data/$(DATE)/cifar_resnet_s3.csv $(PARAMS) 1>./data/$(DATE).log 2>&1 &
+
 ml-test-sion: build
 	./playback.sh exec "python3 ../client/pytorch_client --dataset cifar --batch 64 --s3_source infinicache-cifar-test --s3_train None --s3_test None --loader infinicache --model basic --epochs 10 -o _places_basic_sion.csv $(PARAMS)" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
 

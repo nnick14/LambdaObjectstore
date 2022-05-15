@@ -5,8 +5,7 @@ import time
 
 import pytorch_training
 from pytorch_training import initialize_model, run_training_get_results
-from infinicache_dataloaders import DatasetS3, S3Loader
-from updated_datasets import DatasetDisk, MiniObjDataset
+from updated_datasets import DatasetDisk, DatasetS3, MiniObjDataset
 from pathlib import Path
 from torch.utils.data import DataLoader
 import utils
@@ -167,35 +166,26 @@ def main():
       args.s3_train = args.s3_source
 
     trainset = DatasetS3(
-        args.s3_train, label_idx=0, channels=True, testing=args.benchmark
+        args.s3_train, label_idx=0, img_transform=normalize_cifar
     )
     if loadtestset:
       testset = DatasetS3(
-          args.s3_test, label_idx=0, channels=True, testing=args.benchmark
+          args.s3_test, label_idx=0, img_transform=normalize_cifar
       )
 
   # Define the dataloader
-  if args.loader == "s3":
-    trainloader = S3Loader(
-      trainset, dataset_name=args.dataset, img_dims=img_dims, batch_size=args.batch
+  collate_fn = None
+  batch = args.batch
+  if args.loader == "infinicache":
+    collate_fn = utils.infinicache_collate
+    batch = args.batch/args.minibatch
+  trainloader = DataLoader(
+      trainset, batch_size=int(batch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
+  )
+  if loadtestset:
+    testloader = DataLoader(
+        testset, batch_size=int(batch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
     )
-    if loadtestset:
-      testloader = S3Loader(
-        testset, dataset_name=args.dataset, img_dims=img_dims, batch_size=args.batch
-      )
-  else:
-    collate_fn = None
-    batch = args.batch
-    if args.loader == "infinicache":
-      collate_fn = utils.infinicache_collate
-      batch = args.batch/args.minibatch
-    trainloader = DataLoader(
-        trainset, batch_size=int(batch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
-    )
-    if loadtestset:
-      testloader = DataLoader(
-          testset, batch_size=int(batch), shuffle=True, num_workers=args.workers, collate_fn=collate_fn, pin_memory=True
-      )
 
   # Define the model
   device = "cuda" if torch.cuda.is_available() else "cpu"
