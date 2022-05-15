@@ -112,4 +112,4 @@ ml-cifar-sion: build
 	./playback.sh exec "python3 ../client/pytorch_client --dataset cifar --batch 256 --loader infinicache --model resnet -o _cifar_resnet_sion.csv $(PARAMS)" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
 
 ml-places-sion:
-	./playback.sh dryrun "python3 ../client/pytorch_client --dataset places --batch 256 --loader infinicache --model resnet --s3_source places-infinicache --s3_train None --s3_test None --epochs 10 -o _places_resnet_sion.csv $(PARAMS)" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
+	./playback.sh dryrun "python3 ../client/pytorch_client --dataset places --batch 256 --loader infinicache --model basic --s3_source places-infinicache --s3_train None --s3_test None --epochs 10 -o _places_basic_sion.csv $(PARAMS)" 1000 "" "" -enable-dashboard 1>./log 2>&1 &
